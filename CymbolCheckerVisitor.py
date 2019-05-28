@@ -8,7 +8,10 @@ class Type:
 	BOOLEAN = "boolean"
 
 class CymbolCheckerVisitor (CymbolVisitor):
+	# A string to store the LLVM IR code.
 	program = ""
+	# A dict to keep track of function data (return type, used temp variables).
+	functions_data = {}
 
 	def visitVarDecl(self, ctx:CymbolParser.VarDeclContext):
 		var_name = ctx.ID().getText()
@@ -28,7 +31,10 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
 	def visitFuncDecl(self, ctx:CymbolParser.FuncDeclContext):
 		func_name = ctx.ID().getText()
-		func_ret_type = ctx.ID().getText()
+		func_ret_type = ctx.tyype().getText()
+
+		# Creating entry in the dict for this function.
+		self.functions_data[func_name] = (func_ret_type, 0)
 
         # Add function declaration and return type.
 		self.program += "define "
@@ -42,7 +48,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
 		self.program += "@{0}(".format(func_name)
 		if ctx.paramTypeList() != None:
 			self.program += ctx.paramTypeList().accept(self)
-		self.program += ") {\n\t"
+		self.program += ") {\n"
 		ctx.block().accept(self)
 		self.program += "}"
 
@@ -68,3 +74,20 @@ class CymbolCheckerVisitor (CymbolVisitor):
 			param_type = "i8 "
 
 		return param_type + "%" + param_name
+
+	def visitReturnStat(self, ctx:CymbolParser.ReturnStatContext):
+		return_stat = "ret "
+		function_key = list(self.functions_data)[-1]
+		return_type =  self.functions_data[function_key][0]
+
+		if return_type == Type.INT:
+			return_stat += "i32 "
+		elif return_type == Type.FLOAT:
+			return_stat += "float "
+		elif return_type == Type.BOOLEAN:
+			return_stat += "i8 "
+
+		self.program += return_stat
+
+		if ctx.expr() != None:
+			ctx.expr().accept(self)
