@@ -21,12 +21,10 @@ class CymbolCheckerVisitor (CymbolVisitor):
 		elif var_type == Type.FLOAT:
 			self.program += "float, align 4\n"
 		elif var_type == Type.BOOLEAN:
-			self.program += "i8, align 4\n"
+			self.program += "i8, align 1\n"
 
 		if ctx.expr() != None:
 			ctx.expr().accept(self)
-
-		print(self.program)
 
 	def visitFuncDecl(self, ctx:CymbolParser.FuncDeclContext):
 		func_name = ctx.ID().getText()
@@ -42,9 +40,31 @@ class CymbolCheckerVisitor (CymbolVisitor):
 			self.program += "i8 "
 
 		self.program += "@{0}(".format(func_name)
-        # NOTE: Not sure if this is right. Still needs to be tested.
 		if ctx.paramTypeList() != None:
-			ctx.paramTypeList().accept(self)
+			self.program += ctx.paramTypeList().accept(self)
 		self.program += ") {\n\t"
 		ctx.block().accept(self)
 		self.program += "}"
+
+		print(self.program)
+
+	def visitParamTypeList(self, ctx:CymbolParser.ParamTypeListContext):
+		params = []
+
+		for param in ctx.paramType():
+			params.append(param.accept(self))
+
+		return ", ".join(params)
+
+	def visitParamType(self, ctx:CymbolParser.ParamTypeContext):
+		param_type = ctx.tyype().getText()
+		param_name = ctx.ID().getText()
+
+		if param_type == Type.INT:
+			param_type = "i32 "
+		elif param_type == Type.FLOAT:
+			param_type = "float "
+		elif param_type == Type.BOOLEAN:
+			param_type = "i8 "
+
+		return param_type + "%" + param_name
