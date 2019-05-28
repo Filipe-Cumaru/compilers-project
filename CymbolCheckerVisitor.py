@@ -26,8 +26,11 @@ class CymbolCheckerVisitor (CymbolVisitor):
 		elif var_type == Type.BOOLEAN:
 			self.program += "i8, align 1\n"
 
+		# TODO: Add store instructions for float and boolean types.
 		if ctx.expr() != None:
-			ctx.expr().accept(self)
+			last_var = ctx.expr().accept(self)
+			if var_type == Type.INT:
+				self.program += "store i32 " + last_var + ", i32* %" + var_name + ", align 4\n"
 
 	def visitFuncDecl(self, ctx:CymbolParser.FuncDeclContext):
 		func_name = ctx.ID().getText()
@@ -77,8 +80,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
 	def visitReturnStat(self, ctx:CymbolParser.ReturnStatContext):
 		return_stat = "ret "
-		function_key = list(self.functions_data)[-1]
-		return_type =  self.functions_data[function_key][0]
+		function_data_key = list(self.functions_data)[-1]
+		return_type =  self.functions_data[function_data_key][0]
 
 		if return_type == Type.INT:
 			return_stat += "i32 "
@@ -87,7 +90,9 @@ class CymbolCheckerVisitor (CymbolVisitor):
 		elif return_type == Type.BOOLEAN:
 			return_stat += "i8 "
 
-		self.program += return_stat
+		return_var = ctx.expr().accept(self)
 
-		if ctx.expr() != None:
-			ctx.expr().accept(self)
+		self.program += return_stat + return_var + "\n"
+
+	def visitMulDivExpr(self, ctx:CymbolParser.MulDivExprContext):
+		return self.visitChildren(ctx)
