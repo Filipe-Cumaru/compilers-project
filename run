@@ -1,0 +1,9 @@
+#!/bin/bash
+# clang -c file.c -S -emit-llvm test.ll
+echo 'Running..'
+llc -filetype=obj file.ll
+rm file
+gcc file.o -o file
+chmod +x file
+./file
+echo 'Done, return: ' $?
