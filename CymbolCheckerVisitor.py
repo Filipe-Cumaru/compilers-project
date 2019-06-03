@@ -206,7 +206,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         expr_result = ctx.expr().accept(self)
 
         if(isinstance(expr_result, int)):
-            expr_result = '%' + expr_result
+            expr_result = '%' + str(expr_result)
 
         current_var = self.getNextVar()
 
@@ -229,4 +229,26 @@ class CymbolCheckerVisitor (CymbolVisitor):
         return current_var
 
     def visitMulDivExpr(self, ctx: CymbolParser.MulDivExprContext):
-        return self.visitChildren(ctx)
+        left_expr = ctx.expr()[0].accept(self)
+        left_expr_type = self.getVarType(left_expr, ctx.expr()[0])
+        right_expr = ctx.expr()[1].accept(self)
+        right_expr_type = self.getVarType(right_expr, ctx.expr()[1])
+
+        if isinstance(left_expr, int):
+            left_operand = '%' + str(left_expr)
+        elif '%' in left_expr:
+            left_operand = left_expr
+        else:
+            left_operand = self.loadVariable(left_expr, left_expr_type)
+
+        if isinstance(right_expr, int):
+            right_operand = '%' + str(right_expr)
+        elif '%' in left_expr:
+            right_operand = right_expr
+        else:
+            right_operand = self.loadVariable(right_expr, right_expr_type)
+
+
+
+    def visitAddSubExpr(self, ctx:CymbolParser.AddSubExprContext):
+        pass
