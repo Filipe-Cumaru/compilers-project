@@ -11,8 +11,7 @@ define dso_local i32 @func(i32, i32, i32) #0 {
   store i32 %0, i32* %4, align 4
   store i32 %1, i32* %5, align 4
   store i32 %2, i32* %6, align 4
-  %7 = load i32, i32* %5, align 4
-  ret i32 %7
+  ret i32 -3
 }
 
 ; Function Attrs: noinline nounwind optnone sspstrong uwtable

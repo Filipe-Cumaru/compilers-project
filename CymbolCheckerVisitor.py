@@ -24,7 +24,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         if (type(var) == type(int()) or exprCtx.ID):
             return self.vars_data[self.func_name][var]
         elif exprCtx.BOOLEAN:
-            return 'i8'
+            return 'i1'
         elif exprCtx.INT:
             return 'i32'
         elif exprCtx.FLOAT:
@@ -74,8 +74,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
             self.vars_data[self.func_name][var_name] = 'float'
             self.program += "float, align 4\n"
         elif var_type == Type.BOOLEAN:
-            self.vars_data[self.func_name][var_name] = 'i8'
-            self.program += "i8, align 1\n"
+            self.vars_data[self.func_name][var_name] = 'i1'
+            self.program += "i1, align 1\n"
 
         # TODO: Add store instructions for float and boolean types.
         if ctx.expr() != None:
@@ -105,7 +105,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         elif self.func_ret_type == Type.FLOAT:
             self.program += "float "
         elif self.func_ret_type == Type.BOOLEAN:
-            self.program += "i8 "
+            self.program += "i1 "
 
         self.program += "@{0}(".format(self.func_name)
         if ctx.paramTypeList() != None:
@@ -133,7 +133,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         elif param_type == Type.FLOAT:
             param_type = "float "
         elif param_type == Type.BOOLEAN:
-            param_type = "i8 "
+            param_type = "i1 "
 
         # Add var to dict
         self.vars_data[self.func_name][param_name] = param_type
@@ -151,8 +151,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
             return_stat += "float "
             return_type = "float"
         elif return_type == Type.BOOLEAN:
-            return_stat += "i8 "
-            return_type = "i8"
+            return_stat += "i1 "
+            return_type = "i1"
 
         return_var = ctx.expr().accept(self)
 
@@ -208,16 +208,14 @@ class CymbolCheckerVisitor (CymbolVisitor):
         if(isinstance(expr_result, int)):
             expr_result = '%' + str(expr_result)
 
-        current_var = self.getNextVar()
-
         if ctx.op.text == '+':  # Nothing to do, just accept the next expressions
             return self.visitChildren(ctx)
 
         # if it's just a negative number
         elif ctx.op.text == '-' and (hasattr(ctx.expr(), 'INT') or hasattr(ctx.expr(), 'FLOAT')):
-            print('TODO: Treat negative number expression')
-        # all other cases
+            expr_result = '-' + expr_result
         elif ctx.op.text == '-':
+            current_var = self.getNextVar()
             last_var_type = self.getVarType(expr_result, ctx.expr())
 
             self.program += '%{} = sub nsw {} 0, {}, align 4\n'.format(
@@ -226,11 +224,12 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
             # set current var's type to be the same as the last var's type
             self.setVarType(current_var, last_var_type)
-        return current_var
+            return current_var
+        return expr_result
 
     def visitMulDivExpr(self, ctx: CymbolParser.MulDivExprContext):
         left_expr = ctx.expr()[0].accept(self)
         right_expr = ctx.expr()[1].accept(self)
 
-    def visitAddSubExpr(self, ctx:CymbolParser.AddSubExprContext):
+    def visitAddSubExpr(self, ctx: CymbolParser.AddSubExprContext):
         pass
