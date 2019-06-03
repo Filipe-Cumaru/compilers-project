@@ -1,6 +1,13 @@
 #!/bin/bash
 # clang -c file.c -S -emit-llvm test.ll
-echo 'Running..'
+if [ "$1" = 'test' ]
+then
+  echo 'Compiling and running test.c'
+  make < test.c > file.ll && sed -i '/python3\|cp/d' file.ll
+else 
+  echo 'Compiling and running file.ll'
+fi
+
 llc -filetype=obj file.ll
 rm file
 gcc file.o -o file

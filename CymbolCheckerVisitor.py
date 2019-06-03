@@ -21,13 +21,13 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     # START AUXILIARY FUNCTIONS
     def getVarType(self, var, exprCtx):
-        if (type(var) == type(int()) or exprCtx.ID):
+        if type(var) == type(int()) or hasattr(exprCtx, 'ID'):
             return self.vars_data[self.func_name][var]
-        elif exprCtx.BOOLEAN:
+        elif hasattr(exprCtx, 'BOOLEAN'):
             return 'i1'
-        elif exprCtx.INT:
+        elif hasattr(exprCtx, 'INT'):
             return 'i32'
-        elif exprCtx.FLOAT:
+        elif hasattr(exprCtx, 'FLOAT'):
             return 'float'
 
     def setVarType(self, var, varType):
@@ -36,19 +36,20 @@ class CymbolCheckerVisitor (CymbolVisitor):
     # returns the next temp var to be used
     def getNextVar(self, increment=True):
         # to avoid doing set all the fucking time
-        if(increment):
+        if increment:
             self.functions_data[self.func_name][1] += 1
         return self.functions_data[self.func_name][1]
 
     # Adds load statement and returns the temp var that contains
     # the value of the given variable
+    # NOTE: Returns None if the variable to be loaded is not a pointer
     def loadVariable(self, var, var_type):
         current_var = None
-        if (isinstance(var, int)):
+        if isinstance(var, int):
             var = '%' + str(var)
 
         # if the expr result is a variable
-        if('%' in var):
+        if '*' in var_type:
             current_var = '%' + str(self.getNextVar())
 
             # load the value of the returned var into the current var
@@ -68,20 +69,20 @@ class CymbolCheckerVisitor (CymbolVisitor):
         # Add line with variable allocation.
         self.program += "{0} = alloca ".format(var_name)
         if var_type == Type.INT:
-            self.vars_data[self.func_name][var_name] = 'i32'
+            self.vars_data[self.func_name][var_name] = 'i32*'
             self.program += "i32, align 4\n"
         elif var_type == Type.FLOAT:
-            self.vars_data[self.func_name][var_name] = 'float'
+            self.vars_data[self.func_name][var_name] = 'float*'
             self.program += "float, align 4\n"
         elif var_type == Type.BOOLEAN:
-            self.vars_data[self.func_name][var_name] = 'i1'
+            self.vars_data[self.func_name][var_name] = 'i1*'
             self.program += "i1, align 1\n"
 
         # TODO: Add store instructions for float and boolean types.
         if ctx.expr() != None:
             last_var = ctx.expr().accept(self)
             # If the last var is a temporary variable
-            if(isinstance(last_var, int)):
+            if isinstance(last_var, int):
                 last_var = '%' + str(last_var)
             # If not then it's an int, bolean or float
             if var_type == Type.INT:
@@ -155,9 +156,18 @@ class CymbolCheckerVisitor (CymbolVisitor):
             return_type = "i1"
 
         return_var = ctx.expr().accept(self)
+        return_var_type = self.getVarType(return_var, ctx.expr())
 
-        # TODO check if variable is a pointer and only then do the load
-        if (isinstance(return_var, int) or '%' in return_var):
+        if (isinstance(return_var, int)):
+            return_var = '%' + str(return_var)
+
+        current_var = self.loadVariable(return_var, return_var_type)
+
+        if current_var is not None:
+            return_var = current_var
+            return_var_type = self.getVarType(return_var, ctx.expr())
+
+        if '*' in return_var_type:  # Only load if the variable is a pointer
             current_var = '%' + str(self.getNextVar())
 
             self.program += '{} = load {}, {}* {}, align 4\n'.format(
@@ -169,14 +179,14 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     def visitAssignStat(self, ctx: CymbolParser.AssignStatContext):
         var_id = '%' + ctx.ID().getText()
-        # print(self.vars_data)
+
         var_type = self.getVarType(var_id, ctx)
         expr_result = ctx.expr().accept(self)
         expr_result_type = self.getVarType(expr_result, ctx.expr())
 
         expr_result_value = self.loadVariable(expr_result, expr_result_type)
 
-        if(expr_result_value is None):
+        if expr_result_value is None:
             expr_result_value = expr_result
 
         # store the value of the expr result where it should be stored
@@ -205,7 +215,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         # get last variable number
         expr_result = ctx.expr().accept(self)
 
-        if(isinstance(expr_result, int)):
+        if isinstance(expr_result, int):
             expr_result = '%' + str(expr_result)
 
         if ctx.op.text == '+':  # Nothing to do, just accept the next expressions
@@ -233,3 +243,62 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     def visitAddSubExpr(self, ctx: CymbolParser.AddSubExprContext):
         pass
+
+    # helper function for both EqExpr and ComparisionExpr
+    def visitAnyComparisonExpr(self, ctx):
+        left_expr = ctx.expr()[0].accept(self)
+        left_expr_type = self.getVarType(left_expr, ctx.expr()[0])
+        right_expr = ctx.expr()[1].accept(self)
+        right_expr_type = self.getVarType(right_expr, ctx.expr()[1])
+
+        if isinstance(left_expr, int):
+            left_operand = '%' + str(left_expr)
+        elif '%' in left_expr:
+            left_operand = left_expr
+        else:
+            left_operand = self.loadVariable(left_expr, left_expr_type)
+
+        if isinstance(right_expr, int):
+            right_operand = '%' + str(right_expr)
+        elif '%' in left_expr:
+            right_operand = right_expr
+        else:
+            right_operand = self.loadVariable(right_expr, right_expr_type)
+
+        # Defining operation type
+        if ctx.op.text == '==':
+            condition = 'eq'
+        elif ctx.op.text == '!=':
+            condition = 'ne'
+        elif ctx.op.text == '>':
+            condition = 'gt'
+        elif ctx.op.text == '>=':
+            condition = 'ge'
+        elif ctx.op.text == '<':
+            condition = 'lt'
+        elif ctx.op.text == '<=':
+            condition = 'le'
+
+        # Defining instruction type
+        if left_expr_type.startswith('i'):  # Comparing ints or booleans
+            instruction = 'icmp'
+            if condition not in ['eq', 'ne']:
+                condition = 's' + condition  # Operations are signed
+        else:  # Comparing floats
+            instruction = 'fcmp'
+            condition = 'o' + condition  # Operations are ordered
+
+        current_var = self.getNextVar()
+        self.setVarType(current_var, 'i1')
+
+        self.program += '%{} = {} {} {} {}, {}\n'.format(
+            current_var, instruction, condition, left_expr_type,
+            left_operand, right_operand)
+
+        return current_var
+
+    def visitComparisonExpr(self, ctx: CymbolParser.ComparisonExprContext):
+        return self.visitAnyComparisonExpr(ctx)
+
+    def visitEqExpr(self, ctx: CymbolParser.EqExprContext):
+        return self.visitAnyComparisonExpr(ctx)
