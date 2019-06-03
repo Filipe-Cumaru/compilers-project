@@ -35,7 +35,6 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     # returns the next temp var to be used
     def getNextVar(self, increment=True):
-        last = self.functions_data[self.func_name][1]
         # to avoid doing set all the fucking time
         if(increment):
             self.functions_data[self.func_name][1] += 1
@@ -44,6 +43,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
     # Adds load statement and returns the temp var that contains
     # the value of the given variable
     def loadVariable(self, var, var_type):
+        current_var = None
         if (isinstance(var, int)):
             var = '%' + str(var)
 
@@ -58,9 +58,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
             self.setVarType(current_var, var_type)
 
-            # make sure the *value* is stored, not the pointer to it
-            return current_var
-        return None
+        return current_var
     # END AUXILIARY FUNCTIONS
 
     def visitVarDecl(self, ctx: CymbolParser.VarDeclContext):
@@ -154,7 +152,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
             return_type = "float"
         elif return_type == Type.BOOLEAN:
             return_stat += "i8 "
-            return_type = "i"
+            return_type = "i8"
 
         return_var = ctx.expr().accept(self)
 

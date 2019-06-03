@@ -102,17 +102,17 @@ stat : varDecl
      | exprStat
      ;
 
-expr : ID '(' exprList? ')'                      #FunctionCallExpr
-     | op=('+' | '-') expr                       #SignedExpr
-     | '!' expr                                  #NotExpr
-     | expr op=('<' | '>' | '<=' | '>=') expr    #ComparisonExpr
-     | expr op=('*' | '/') expr                  #MulDivExpr
-     | expr op=('+' | '-') expr                  #AddSubExpr
-     | expr op=('&&'| '||') expr                 #AndOrExpr
-     | expr op=('=='| '!=') expr                 #EqExpr
-     | ID                                        #VarIdExpr
-     | INT                                       #IntExpr
-     | FLOAT                                     #FloatExpr
-     | BOOLEAN                                   #BooleanExpr
-     | '(' expr ')'                              #ParenthesisExpr
+expr : ID '(' exprList? ')'                      #FunctionCallExpr 4
+     | op=('+' | '-') expr                       #SignedExpr 3
+     | '!' expr                                  #NotExpr 2
+     | expr op=('<' | '>' | '<=' | '>=') expr    #ComparisonExpr 6
+     | expr op=('*' | '/') expr                  #MulDivExpr 3
+     | expr op=('+' | '-') expr                  #AddSubExpr 3
+     | expr op=('&&'| '||') expr                 #AndOrExpr 2
+     | expr op=('=='| '!=') expr                 #EqExpr 2
+     | ID                                        #VarIdExpr 2
+     | INT                                       #IntExpr 1
+     | FLOAT                                     #FloatExpr 1
+     | BOOLEAN                                   #BooleanExpr 1
+     | '(' expr ')'                              #ParenthesisExpr 1
      ;

@@ -1,6 +1,8 @@
-int main() {
-  int b;
-  int c = -b;
-  return b;
+int func(int b, int c, int d) {
+  return c;
+}
+
+int main(int a) {
+  return a;
 }
 
