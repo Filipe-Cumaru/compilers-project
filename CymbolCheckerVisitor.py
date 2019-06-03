@@ -248,6 +248,14 @@ class CymbolCheckerVisitor (CymbolVisitor):
         else:
             right_operand = self.loadVariable(right_expr, right_expr_type)
 
+        # TODO: Check which operation is being performed.
+        result_var = self.getNextVar()
+        if right_expr_type == 'i32':
+            self.program += 'alloca i32, align 4\n'
+            self.setVarType(result_var, 'i32')
+            self.program += 'mul nsw i32 ' + left_operand + ', ' + right_operand
+        elif right_expr_type == 'float':
+            pass
 
 
     def visitAddSubExpr(self, ctx:CymbolParser.AddSubExprContext):
