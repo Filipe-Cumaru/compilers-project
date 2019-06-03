@@ -21,7 +21,9 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     # START AUXILIARY FUNCTIONS
     def getVarType(self, var, exprCtx):
-        if type(var) == type(int()) or hasattr(exprCtx, 'ID'):
+        if isinstance(var, int):
+            var = '%' + str(var)
+        if hasattr(exprCtx, 'ID') or '%' in var:
             return self.vars_data[self.func_name][var]
         elif hasattr(exprCtx, 'BOOLEAN'):
             return 'i1'
@@ -40,9 +42,28 @@ class CymbolCheckerVisitor (CymbolVisitor):
             self.functions_data[self.func_name][1] += 1
         return self.functions_data[self.func_name][1]
 
+    # Returns the operands and their types of any boolean expression
+    def getBooleanExprOper(self, ctx):
+        operands = []  # (operand, operand_type)
+        for expr in ctx.expr():
+            expr_result = expr.accept(self)
+            expr_result_type = self.getVarType(expr_result, expr)
+
+            operand = self.loadVariable(expr_result, expr_result_type)
+            if not operand:
+                operand = expr_result
+                if isinstance(operand, int):
+                    operand = '%' + str(operand)
+
+            operand_type = self.getVarType(operand, expr)
+            operands.append((operand, operand_type))
+
+        return operands
+
     # Adds load statement and returns the temp var that contains
     # the value of the given variable
     # NOTE: Returns None if the variable to be loaded is not a pointer
+
     def loadVariable(self, var, var_type):
         current_var = None
         if isinstance(var, int):
@@ -54,10 +75,10 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
             # load the value of the returned var into the current var
             # TODO: Fix align number based on var_type
-            self.program += '{} = load {}, {}* {}, align 4\n'.format(
-                current_var, var_type, var_type, var)
+            self.program += '\t{} = load {}, {} {}, align 4\n'.format(
+                current_var, var_type.replace('*', ''), var_type, var)
 
-            self.setVarType(current_var, var_type)
+            self.setVarType(current_var, var_type.replace('*', ''))
 
         return current_var
     # END AUXILIARY FUNCTIONS
@@ -67,27 +88,31 @@ class CymbolCheckerVisitor (CymbolVisitor):
         var_type = ctx.tyype().getText()
 
         # Add line with variable allocation.
-        self.program += "{0} = alloca ".format(var_name)
+        self.program += "\t{0} = alloca ".format(var_name)
         if var_type == Type.INT:
+            var_type = 'i32'
             self.vars_data[self.func_name][var_name] = 'i32*'
-            self.program += "i32, align 4\n"
+            self.program += "\ti32, align 4\n"
         elif var_type == Type.FLOAT:
+            var_type = 'float'
             self.vars_data[self.func_name][var_name] = 'float*'
-            self.program += "float, align 4\n"
+            self.program += "\tfloat, align 4\n"
         elif var_type == Type.BOOLEAN:
+            var_type = 'i1'
             self.vars_data[self.func_name][var_name] = 'i1*'
-            self.program += "i1, align 1\n"
-
-        # TODO: Add store instructions for float and boolean types.
+            self.program += "\ti1, align 1\n"
         if ctx.expr() != None:
-            last_var = ctx.expr().accept(self)
+            expr_result = ctx.expr().accept(self)
+
             # If the last var is a temporary variable
-            if isinstance(last_var, int):
-                last_var = '%' + str(last_var)
+            if isinstance(expr_result, int):
+                expr_result = '%' + str(expr_result)
+
+            align = 1 if var_type == 'i1' else 4
             # If not then it's an int, bolean or float
-            if var_type == Type.INT:
-                self.program += "store i32 " + last_var + \
-                    ", i32* " + var_name + ", align 4\n"
+            self.program += "\tstore {} {}, {}* {}, align {}\n".format(
+                var_type, expr_result, var_type, var_name, align)
+        # print(self.vars_data)
 
     def visitFuncDecl(self, ctx: CymbolParser.FuncDeclContext):
         self.func_name = ctx.ID().getText()
@@ -142,7 +167,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         return param_type + param_name
 
     def visitReturnStat(self, ctx: CymbolParser.ReturnStatContext):
-        return_stat = "ret "
+        return_stat = "\tret "
         return_type = self.functions_data[self.func_name][0]
 
         if return_type == Type.INT:
@@ -156,6 +181,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
             return_type = "i1"
 
         return_var = ctx.expr().accept(self)
+        # print(self.vars_data)
+        # print(self.program)
         return_var_type = self.getVarType(return_var, ctx.expr())
 
         if (isinstance(return_var, int)):
@@ -165,22 +192,13 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
         if current_var is not None:
             return_var = current_var
-            return_var_type = self.getVarType(return_var, ctx.expr())
-
-        if '*' in return_var_type:  # Only load if the variable is a pointer
-            current_var = '%' + str(self.getNextVar())
-
-            self.program += '{} = load {}, {}* {}, align 4\n'.format(
-                current_var, return_type, return_type, return_var)
-
-            return_var = current_var  # the temp var should be returned
 
         self.program += return_stat + return_var + "\n"
 
     def visitAssignStat(self, ctx: CymbolParser.AssignStatContext):
         var_id = '%' + ctx.ID().getText()
 
-        var_type = self.getVarType(var_id, ctx)
+        var_type = self.getVarType(var_id, ctx).replace('*', '')
         expr_result = ctx.expr().accept(self)
         expr_result_type = self.getVarType(expr_result, ctx.expr())
 
@@ -191,7 +209,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
         # store the value of the expr result where it should be stored
         # TODO: Store variable types as pointers too when necessary
-        self.program += 'store {} {}, {}* {}, align 4\n'.format(
+        self.program += '\tstore {} {}, {} {}, align 4\n'.format(
             expr_result_type, expr_result_value, var_type, var_id)
 
         return var_id
@@ -228,7 +246,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
             current_var = self.getNextVar()
             last_var_type = self.getVarType(expr_result, ctx.expr())
 
-            self.program += '%{} = sub nsw {} 0, {}, align 4\n'.format(
+            self.program += '\t%{} = sub nsw {} 0, {}, align 4\n'.format(
                 current_var, last_var_type, expr_result
             )
 
@@ -246,24 +264,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     # helper function for both EqExpr and ComparisionExpr
     def visitAnyComparisonExpr(self, ctx):
-        left_expr = ctx.expr()[0].accept(self)
-        left_expr_type = self.getVarType(left_expr, ctx.expr()[0])
-        right_expr = ctx.expr()[1].accept(self)
-        right_expr_type = self.getVarType(right_expr, ctx.expr()[1])
-
-        if isinstance(left_expr, int):
-            left_operand = '%' + str(left_expr)
-        elif '%' in left_expr:
-            left_operand = left_expr
-        else:
-            left_operand = self.loadVariable(left_expr, left_expr_type)
-
-        if isinstance(right_expr, int):
-            right_operand = '%' + str(right_expr)
-        elif '%' in left_expr:
-            right_operand = right_expr
-        else:
-            right_operand = self.loadVariable(right_expr, right_expr_type)
+        [(left_operand, left_operand_type),
+         (right_operand, _)] = self.getBooleanExprOper(ctx)
 
         # Defining operation type
         if ctx.op.text == '==':
@@ -280,7 +282,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
             condition = 'le'
 
         # Defining instruction type
-        if left_expr_type.startswith('i'):  # Comparing ints or booleans
+        if left_operand_type.startswith('i'):  # Comparing ints or booleans
             instruction = 'icmp'
             if condition not in ['eq', 'ne']:
                 condition = 's' + condition  # Operations are signed
@@ -291,8 +293,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
         current_var = self.getNextVar()
         self.setVarType(current_var, 'i1')
 
-        self.program += '%{} = {} {} {} {}, {}\n'.format(
-            current_var, instruction, condition, left_expr_type,
+        self.program += '\t%{} = {} {} {} {}, {}\n'.format(
+            current_var, instruction, condition, left_operand_type,
             left_operand, right_operand)
 
         return current_var
@@ -302,3 +304,22 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     def visitEqExpr(self, ctx: CymbolParser.EqExprContext):
         return self.visitAnyComparisonExpr(ctx)
+
+    def visitAndOrExpr(self, ctx: CymbolParser.AndOrExprContext):
+        [(left_operand, left_operand_type),
+         (right_operand, _)] = self.getBooleanExprOper(ctx)
+
+        current_var = self.getNextVar()
+        self.setVarType('%' + str(current_var), left_operand_type)
+        if(ctx.op.text == '&&'):
+            operation = 'and'
+        else:
+            operation = 'or'
+
+        self.program += '\t%{} = {} i1 {}, {}\n'.format(
+            current_var, operation, left_operand, right_operand)
+
+        return current_var
+
+    def visitParenthesisExpr(self, ctx: CymbolParser.ParenthesisExprContext):
+        return ctx.expr().accept(self)

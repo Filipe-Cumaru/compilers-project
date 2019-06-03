@@ -1,8 +1,8 @@
 
-boolean main() {
-  int a = 1;
-  int b = 0;
 
-  return a < b;
+boolean main() {
+  boolean c = 1;
+  boolean b = 0;
+  return c && b;
 }
 

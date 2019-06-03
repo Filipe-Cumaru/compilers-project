@@ -1,8 +1,10 @@
 define i1 @main() {
-%a = alloca i32, align 4
-store i32 1, i32* %a, align 4
-%b = alloca i32, align 4
-store i32 0, i32* %b, align 4
-%1 = icmp slt i32* %a, %b
-ret i1 %1
+	%c = alloca 	i1, align 1
+	store i1 1, i1* %c, align 1
+	%b = alloca 	i1, align 1
+	store i1 0, i1* %b, align 1
+	%1 = load i1, i1* %c, align 4
+	%2 = load i1, i1* %b, align 4
+	%3 = and i1 %1, %2
+	ret i1 %3
 }
