@@ -83,6 +83,10 @@ class CymbolCheckerVisitor (CymbolVisitor):
         return current_var
     # END AUXILIARY FUNCTIONS
 
+    def visitFiile(self, ctx:CymbolParser.FiileContext):
+        self.visitChildren(ctx)
+        print(self.program)
+
     def visitVarDecl(self, ctx: CymbolParser.VarDeclContext):
         var_name = '%' + ctx.ID().getText()
         var_type = ctx.tyype().getText()
@@ -138,9 +142,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
             self.program += ctx.paramTypeList().accept(self)
         self.program += ") {\n"
         ctx.block().accept(self)
-        self.program += "}"
-
-        print(self.program)
+        self.program += "}\n"
 
     def visitParamTypeList(self, ctx: CymbolParser.ParamTypeListContext):
         params = []
@@ -254,13 +256,6 @@ class CymbolCheckerVisitor (CymbolVisitor):
             self.setVarType(current_var, last_var_type)
             return current_var
         return expr_result
-
-    def visitMulDivExpr(self, ctx: CymbolParser.MulDivExprContext):
-        left_expr = ctx.expr()[0].accept(self)
-        right_expr = ctx.expr()[1].accept(self)
-
-    def visitAddSubExpr(self, ctx: CymbolParser.AddSubExprContext):
-        pass
 
     # helper function for both EqExpr and ComparisionExpr
     def visitAnyComparisonExpr(self, ctx):
