@@ -66,6 +66,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     def loadVariable(self, var, var_type):
         current_var = None
+        align_val = 1
+        
         if isinstance(var, int):
             var = '%' + str(var)
 
@@ -74,9 +76,11 @@ class CymbolCheckerVisitor (CymbolVisitor):
             current_var = '%' + str(self.getNextVar())
 
             # load the value of the returned var into the current var
-            # TODO: Fix align number based on var_type
-            self.program += '\t{} = load {}, {} {}, align 4\n'.format(
-                current_var, var_type.replace('*', ''), var_type, var)
+            if 'i32' in var_type or 'float' in var_type:
+                align_val = 4
+
+            self.program += '\t{} = load {}, {} {}, align {}\n'.format(
+                current_var, var_type.replace('*', ''), var_type, var, align_val)
 
             self.setVarType(current_var, var_type.replace('*', ''))
 
@@ -356,5 +360,15 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
         self.program += '\t%{} = {} {}, {}\n'.format(
             current_var, operation, left_operand, right_operand)
+
+        return current_var
+
+    def visitNotExpr(self, ctx:CymbolParser.NotExprContext):
+        expr_result = ctx.expr().accept(self)
+        expr_result_type = self.getVarType(expr_result, ctx.expr())
+        operand = self.loadVariable(expr_result, expr_result_type)
+
+        current_var = self.getNextVar()
+        self.program += '\t%{} = xor i1 {}, true\n'.format(current_var, operand)
 
         return current_var
