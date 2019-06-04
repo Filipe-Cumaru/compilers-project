@@ -287,7 +287,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
             condition = 'o' + condition  # Operations are ordered
 
         current_var = self.getNextVar()
-        self.setVarType(current_var, 'i1')
+        self.setVarType('%' + str(current_var), 'i1')
 
         self.program += '\t%{} = {} {} {} {}, {}\n'.format(
             current_var, instruction, condition, left_operand_type,
