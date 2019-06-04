@@ -43,7 +43,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         return self.functions_data[self.func_name][1]
 
     # Returns the operands and their types of any boolean expression
-    def getBooleanExprOper(self, ctx):
+    def getExprOper(self, ctx):
         operands = []  # (operand, operand_type)
         for expr in ctx.expr():
             expr_result = expr.accept(self)
@@ -265,7 +265,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
     # helper function for both EqExpr and ComparisionExpr
     def visitAnyComparisonExpr(self, ctx):
         [(left_operand, left_operand_type),
-         (right_operand, _)] = self.getBooleanExprOper(ctx)
+         (right_operand, _)] = self.getExprOper(ctx)
 
         # Defining operation type
         if ctx.op.text == '==':
@@ -307,7 +307,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     def visitAndOrExpr(self, ctx: CymbolParser.AndOrExprContext):
         [(left_operand, left_operand_type),
-         (right_operand, _)] = self.getBooleanExprOper(ctx)
+         (right_operand, _)] = self.getExprOper(ctx)
 
         current_var = self.getNextVar()
         self.setVarType('%' + str(current_var), left_operand_type)
@@ -323,3 +323,43 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     def visitParenthesisExpr(self, ctx: CymbolParser.ParenthesisExprContext):
         return ctx.expr().accept(self)
+
+    def visitMulDivExpr(self, ctx:CymbolParser.MulDivExprContext):
+        [(left_operand, left_operand_type),
+         (right_operand, right_operand_type)] = self.getExprOper(ctx)
+
+        current_var = self.getNextVar()
+        self.setVarType('%' + str(current_var), left_operand_type)
+        if ctx.op.text == '*' and left_operand_type == 'i32':
+            operation = 'mul nsw'
+        elif ctx.op.text == '*' and left_operand_type == 'float':
+            operation = 'fmul float'
+        elif ctx.op.text == '/' and left_operand_type == 'i32':
+            operation = 'sdiv i32'
+        elif ctx.op.text == '/' and left_operand_type == 'float':
+            operation = 'fdiv float'
+
+        self.program += '\t%{} = {} {}, {}\n'.format(
+            current_var, operation, left_operand, right_operand)
+
+        return current_var
+
+    def visitAddSubExpr(self, ctx:CymbolParser.AddSubExprContext):
+        [(left_operand, left_operand_type),
+         (right_operand, right_operand_type)] = self.getExprOper(ctx)
+
+        current_var = self.getNextVar()
+        self.setVarType('%' + str(current_var), left_operand_type)
+        if ctx.op.text == '+' and left_operand_type == 'i32':
+            operation = 'add nsw i32'
+        elif ctx.op.text == '+' and left_operand_type == 'float':
+            operation = 'fadd float'
+        elif ctx.op.text == '-' and left_operand_type == 'i32':
+            operation = 'sub nsw i32'
+        elif ctx.op.text == '-' and left_operand_type == 'float':
+            operation = 'fsub float'
+
+        self.program += '\t%{} = {} {}, {}\n'.format(
+            current_var, operation, left_operand, right_operand)
+
+        return current_var
