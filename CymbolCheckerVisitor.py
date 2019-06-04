@@ -67,7 +67,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
     def loadVariable(self, var, var_type):
         current_var = None
         align_val = 1
-        
+
         if isinstance(var, int):
             var = '%' + str(var)
 
@@ -100,15 +100,15 @@ class CymbolCheckerVisitor (CymbolVisitor):
         if var_type == Type.INT:
             var_type = 'i32'
             self.vars_data[self.func_name][var_name] = 'i32*'
-            self.program += "\ti32, align 4\n"
+            self.program += "i32, align 4\n"
         elif var_type == Type.FLOAT:
             var_type = 'float'
             self.vars_data[self.func_name][var_name] = 'float*'
-            self.program += "\tfloat, align 4\n"
+            self.program += "float, align 4\n"
         elif var_type == Type.BOOLEAN:
             var_type = 'i1'
             self.vars_data[self.func_name][var_name] = 'i1*'
-            self.program += "\ti1, align 1\n"
+            self.program += "i1, align 1\n"
         if ctx.expr() != None:
             expr_result = ctx.expr().accept(self)
 
@@ -329,13 +329,13 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
         current_var = self.getNextVar()
         self.setVarType('%' + str(current_var), left_operand_type)
-        if ctx.op.text == '*' and left_operand_type == 'i32':
+        if ctx.op.text == '*' and 'i32' in left_operand_type:
             operation = 'mul nsw'
-        elif ctx.op.text == '*' and left_operand_type == 'float':
+        elif ctx.op.text == '*' and 'float' in left_operand_type:
             operation = 'fmul float'
-        elif ctx.op.text == '/' and left_operand_type == 'i32':
+        elif ctx.op.text == '/' and 'i32' in left_operand_type:
             operation = 'sdiv i32'
-        elif ctx.op.text == '/' and left_operand_type == 'float':
+        elif ctx.op.text == '/' and 'float' in left_operand_type:
             operation = 'fdiv float'
 
         self.program += '\t%{} = {} {}, {}\n'.format(
@@ -349,13 +349,13 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
         current_var = self.getNextVar()
         self.setVarType('%' + str(current_var), left_operand_type)
-        if ctx.op.text == '+' and left_operand_type == 'i32':
+        if ctx.op.text == '+' and 'i32' in left_operand_type:
             operation = 'add nsw i32'
-        elif ctx.op.text == '+' and left_operand_type == 'float':
+        elif ctx.op.text == '+' and 'float' in left_operand_type:
             operation = 'fadd float'
-        elif ctx.op.text == '-' and left_operand_type == 'i32':
+        elif ctx.op.text == '-' and 'i32' in left_operand_type:
             operation = 'sub nsw i32'
-        elif ctx.op.text == '-' and left_operand_type == 'float':
+        elif ctx.op.text == '-' and 'float' in left_operand_type:
             operation = 'fsub float'
 
         self.program += '\t%{} = {} {}, {}\n'.format(
@@ -372,3 +372,34 @@ class CymbolCheckerVisitor (CymbolVisitor):
         self.program += '\t%{} = xor i1 {}, true\n'.format(current_var, operand)
 
         return current_var
+
+    def visitFunctionCallExpr(self, ctx:CymbolParser.FunctionCallExprContext):
+        func_args = []
+
+        if hasattr(ctx, 'exprList'):
+            func_args = ctx.exprList().accept(self)
+
+        func_args = ','.join(func_args)
+        func_called_name = ctx.ID().getText()
+        func_called_ret_type = self.functions_data[func_called_name][0]
+        current_var = self.getNextVar()
+
+        self.program += '\t%{} = call {} @{}({})\n'.format(current_var,
+            func_called_ret_type, func_called_name, func_args)
+
+        return current_var
+
+    def visitExprList(self, ctx:CymbolParser.ExprListContext):
+        expr_list = []
+
+        if isinstance(ctx.expr(), list):
+            for e in ctx.expr():
+                expr_result = e.accept(self)
+                expr_result_type = self.getVarType(expr_result, e).replace('*', '')
+                expr_list.append(expr_result_type + ' ' + str(expr_result))
+        else:
+            expr_result = ctx.expr().accept(self)
+            expr_result_type = self.getVarType(expr_result, ctx.expr())
+            expr_list.append(expr_result_type + ' ' + str(expr_result))
+
+        return expr_list
