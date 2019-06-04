@@ -120,7 +120,6 @@ class CymbolCheckerVisitor (CymbolVisitor):
             # If not then it's an int, bolean or float
             self.program += "\tstore {} {}, {}* {}, align {}\n".format(
                 var_type, expr_result, var_type, var_name, align)
-        # print(self.vars_data)
 
     def visitFuncDecl(self, ctx: CymbolParser.FuncDeclContext):
         self.func_name = ctx.ID().getText()
@@ -187,8 +186,6 @@ class CymbolCheckerVisitor (CymbolVisitor):
             return_type = "i1"
 
         return_var = ctx.expr().accept(self)
-        # print(self.vars_data)
-        # print(self.program)
         return_var_type = self.getVarType(return_var, ctx.expr())
 
         if (isinstance(return_var, int)):
@@ -376,13 +373,14 @@ class CymbolCheckerVisitor (CymbolVisitor):
     def visitFunctionCallExpr(self, ctx:CymbolParser.FunctionCallExprContext):
         func_args = []
 
-        if hasattr(ctx, 'exprList'):
+        if ctx.exprList() is not None:
             func_args = ctx.exprList().accept(self)
 
         func_args = ','.join(func_args)
         func_called_name = ctx.ID().getText()
         func_called_ret_type = self.functions_data[func_called_name][0]
         current_var = self.getNextVar()
+        self.setVarType('%' + str(current_var), func_called_ret_type)
 
         self.program += '\t%{} = call {} @{}({})\n'.format(current_var,
             func_called_ret_type, func_called_name, func_args)
