@@ -325,17 +325,30 @@ class CymbolCheckerVisitor (CymbolVisitor):
          (right_operand, right_operand_type)] = self.getExprOper(ctx)
 
         current_var = self.getNextVar()
-        # FIXME: Variable type depends on both operands.
-        self.setVarType('%' + str(current_var), left_operand_type)
-        # TODO: Still needs to add code do cast from int to float before
-        # performing the operation.
-        if ctx.op.text == '*' and 'i32' in left_operand_type and 'i32' in right_operand_type:
+
+        if 'float' in left_operand_type or 'float' in right_operand_type:
+            current_var_type = 'float'
+        else:
+            current_var_type = 'i32'
+        self.setVarType('%' + str(current_var), current_var_type)
+
+        # Adds instruction to cast the integer variable to float.
+        if 'i32' in left_operand_type and 'float' in right_operand_type:
+            self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, left_operand)
+            current_var = self.getNextVar()
+        elif 'i32' in right_operand_type and 'float' in left_operand_type:
+            self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, right_operand)
+            current_var = self.getNextVar()
+
+        # Based on the result type the compiler decides which instruction
+        # should be used.
+        if ctx.op.text == '*' and current_var_type == 'i32':
             operation = 'mul nsw'
-        elif ctx.op.text == '*' and ('float' in left_operand_type or 'float' in right_operand_type):
+        elif ctx.op.text == '*' and current_var_type == 'float':
             operation = 'fmul float'
-        elif ctx.op.text == '/' and 'i32' in left_operand_type and 'i32' in right_operand_type:
+        elif ctx.op.text == '/' and current_var_type == 'i32':
             operation = 'sdiv i32'
-        elif ctx.op.text == '/' and ('float' in left_operand_type or 'float' in right_operand_type):
+        elif ctx.op.text == '/' and current_var_type == 'float':
             operation = 'fdiv float'
 
         self.program += '\t%{} = {} {}, {}\n'.format(
@@ -348,17 +361,28 @@ class CymbolCheckerVisitor (CymbolVisitor):
          (right_operand, right_operand_type)] = self.getExprOper(ctx)
 
         current_var = self.getNextVar()
-        # FIXME: Variable type depends on both operands.
-        self.setVarType('%' + str(current_var), left_operand_type)
-        # TODO: Still needs to add code do cast from int to float before
-        # performing the operation.
-        if ctx.op.text == '+' and 'i32' in left_operand_type and 'i32' in right_operand_type:
+
+        if 'float' in left_operand_type or 'float' in right_operand_type:
+            current_var_type = 'float'
+        else:
+            current_var_type = 'i32'
+        self.setVarType('%' + str(current_var), current_var_type)
+
+        # Adds instruction to cast the integer variable to float.
+        if 'i32' in left_operand_type and 'float' in right_operand_type:
+            self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, left_operand)
+            current_var = self.getNextVar()
+        elif 'i32' in right_operand_type and 'float' in left_operand_type:
+            self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, right_operand)
+            current_var = self.getNextVar()
+
+        if ctx.op.text == '+' and current_var_type == 'i32':
             operation = 'add nsw i32'
-        elif ctx.op.text == '+' and ('float' in left_operand_type or 'float' in right_operand_type):
+        elif ctx.op.text == '+' and current_var_type == 'float':
             operation = 'fadd float'
-        elif ctx.op.text == '-' and 'i32' in left_operand_type and 'i32' in right_operand_type:
+        elif ctx.op.text == '-' and current_var_type == 'i32':
             operation = 'sub nsw i32'
-        elif ctx.op.text == '-' and ('float' in left_operand_type or 'float' in right_operand_type):
+        elif ctx.op.text == '-' and current_var_type == 'float':
             operation = 'fsub float'
 
         self.program += '\t%{} = {} {}, {}\n'.format(
