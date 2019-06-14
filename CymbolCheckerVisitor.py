@@ -268,7 +268,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
     # helper function for both EqExpr and ComparisionExpr
     def visitAnyComparisonExpr(self, ctx):
         [(left_operand, left_operand_type),
-         (right_operand, _)] = self.getExprOper(ctx)
+         (right_operand, right_operand_type)] = self.getExprOper(ctx)
 
         # Defining operation type
         if ctx.op.text == '==':
@@ -285,15 +285,26 @@ class CymbolCheckerVisitor (CymbolVisitor):
             condition = 'le'
 
         # Defining instruction type
-        if left_operand_type.startswith('i'):  # Comparing ints or booleans
+        current_var = self.getNextVar()
+
+        if left_operand_type.startswith('i') and right_operand_type.startswith('i'):  # Comparing ints or booleans
             instruction = 'icmp'
             if condition not in ['eq', 'ne']:
                 condition = 's' + condition  # Operations are signed
         else:  # Comparing floats
+            if left_operand_type.startswith('i'):
+                self.program += '\t%{} = sitofp {} {} to float\n'.format(current_var, left_operand_type, left_operand)
+                left_operand = '%' + str(current_var)
+                left_operand_type = 'float'
+                current_var = self.getNextVar()
+            elif right_operand_type.startswith('i'):
+                self.program += '\t%{} = sitofp {} {} to float\n'.format(current_var, right_operand_type, right_operand)
+                right_operand = '%' + str(current_var)
+                right_operand_type = 'float'
+                current_var = self.getNextVar()
             instruction = 'fcmp'
             condition = 'o' + condition  # Operations are ordered
 
-        current_var = self.getNextVar()
         self.setVarType('%' + str(current_var), 'i1')
 
         self.program += '\t%{} = {} {} {} {}, {}\n'.format(
