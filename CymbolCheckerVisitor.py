@@ -1,7 +1,7 @@
 from antlr4 import *
 from autogen.CymbolParser import CymbolParser
 from autogen.CymbolVisitor import CymbolVisitor
-
+import struct
 
 class Type:
     INT = "int"
@@ -20,6 +20,13 @@ class CymbolCheckerVisitor (CymbolVisitor):
     vars_data = {}
 
     # START AUXILIARY FUNCTIONS
+
+    # Function to conver decimal to binary
+    def float_to_hex(self, f):
+        ieee_float = hex(struct.unpack('<I', struct.pack('<f', f))[0])
+        extra_zeros = 16 - (len(ieee_float) - 2)
+        return ieee_float + (extra_zeros*'0')
+
     def getVarType(self, var, exprCtx):
         if isinstance(var, int):
             var = '%' + str(var)
@@ -224,7 +231,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
         return ctx.INT().getText()
 
     def visitFloatExpr(self, ctx: CymbolParser.VarIdExprContext):
-        return ctx.FLOAT().getText()
+        return self.float_to_hex(float(ctx.FLOAT().getText()))
 
     def visitBooleanExpr(self, ctx: CymbolParser.VarIdExprContext):
         return '1' if ctx.BOOLEAN().getText() == 'true' else '0'
@@ -335,9 +342,11 @@ class CymbolCheckerVisitor (CymbolVisitor):
         # Adds instruction to cast the integer variable to float.
         if 'i32' in left_operand_type and 'float' in right_operand_type:
             self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, left_operand)
+            left_operand = '%' + current_var
             current_var = self.getNextVar()
         elif 'i32' in right_operand_type and 'float' in left_operand_type:
             self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, right_operand)
+            right_operand = '%' + current_var
             current_var = self.getNextVar()
 
         # Based on the result type the compiler decides which instruction
@@ -371,9 +380,11 @@ class CymbolCheckerVisitor (CymbolVisitor):
         # Adds instruction to cast the integer variable to float.
         if 'i32' in left_operand_type and 'float' in right_operand_type:
             self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, left_operand)
+            left_operand = '%' + str(current_var)
             current_var = self.getNextVar()
         elif 'i32' in right_operand_type and 'float' in left_operand_type:
             self.program += '\t%{} = sitofp i32 {} to float\n'.format(current_var, right_operand)
+            right_operand = '%' + str(current_var)
             current_var = self.getNextVar()
 
         if ctx.op.text == '+' and current_var_type == 'i32':
