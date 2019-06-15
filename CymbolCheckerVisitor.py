@@ -24,15 +24,15 @@ class CymbolCheckerVisitor (CymbolVisitor):
     # Function to conver decimal to binary
     def float_to_hex(self, f):
         # Extracting 32 bits IEEE 754 representation of float.
-        ieee_32_float = hex(struct.unpack('<I', struct.pack('<f', f))[0])
+        ieee_32_float = struct.unpack('<I', struct.pack('<f', f))[0]
 
         # Extending the 32 bits representation to 64 bits.
         sign_bit = (ieee_32_float & 0x80000000) << 32
         exponent = (ieee_32_float & 0x7F800000) << 32
         mantissa = (ieee_32_float & 0x7fffff) << 29
         ieee_64_float = sign_bit | exponent | mantissa
-        
-        return ieee_64_float
+
+        return hex(ieee_64_float)
 
     def getVarType(self, var, exprCtx):
         if isinstance(var, int):
