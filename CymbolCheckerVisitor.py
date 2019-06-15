@@ -23,9 +23,15 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     # Function to conver decimal to binary
     def float_to_hex(self, f):
-        ieee_float = hex(struct.unpack('<I', struct.pack('<f', f))[0])
-        extra_zeros = 16 - (len(ieee_float) - 2)
-        return ieee_float + (extra_zeros*'0')
+        ieee_float = hex(struct.unpack('<Q', struct.pack('<d', f))[0])
+        last_digit = int(ieee_float[12], 16)
+        # REVIEW: Verify if rounding is correct.
+        if last_digit < 5:
+            ieee_float = ieee_float[0:11] + 7*'0'
+        else:
+            rounded_digit = hex(int(ieee_float[11], 16) - 1)
+            ieee_float = ieee_float[0:10] + rounded_digit + 7*'0'
+        return ieee_float
 
     def getVarType(self, var, exprCtx):
         if isinstance(var, int):
