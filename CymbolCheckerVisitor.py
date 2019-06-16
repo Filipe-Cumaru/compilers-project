@@ -25,14 +25,15 @@ class CymbolCheckerVisitor (CymbolVisitor):
     def float_to_hex(self, f):
         # Extracting 32 bits IEEE 754 representation of float.
         ieee_32_float = struct.unpack('<I', struct.pack('<f', f))[0]
+        # Extracting 64 bits IEEE 754 representation of float.
+        ieee_64_float = struct.unpack('<Q', struct.pack('<d', f))[0]
 
-        # Extending the 32 bits representation to 64 bits.
-        sign_bit = (ieee_32_float & 0x80000000) << 32
-        exponent = (ieee_32_float & 0x7F800000) << 32
+        # Extending the 32 bits representation to 64 bits LLVM format.
+        sign_exponent = ieee_64_float & 0xFFF0000000000000
         mantissa = (ieee_32_float & 0x7fffff) << 29
-        ieee_64_float = sign_bit | exponent | mantissa
+        llvm_float = sign_exponent | mantissa
 
-        return hex(ieee_64_float)
+        return hex(llvm_float)
 
     def getVarType(self, var, exprCtx):
         if isinstance(var, int):
