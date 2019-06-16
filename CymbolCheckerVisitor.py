@@ -436,6 +436,10 @@ class CymbolCheckerVisitor (CymbolVisitor):
         func_args = ','.join(func_args)
         func_called_name = ctx.ID().getText()
         func_called_ret_type = self.functions_data[func_called_name][0]
+        if func_called_ret_type == 'int':
+            func_called_ret_type = 'i32'
+        elif func_called_ret_type == 'boolean':
+            func_called_ret_type = 'i1'
         current_var = self.getNextVar()
         self.setVarType('%' + str(current_var), func_called_ret_type)
 
