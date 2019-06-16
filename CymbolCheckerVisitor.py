@@ -50,9 +50,8 @@ class CymbolCheckerVisitor (CymbolVisitor):
     def setVarType(self, var, varType):
         self.vars_data[self.func_name][var] = varType
 
-    # returns the next temp var to be used
+    # Returns the next temp var to be used.
     def getNextVar(self, increment=True):
-        # to avoid doing set all the fucking time
         if increment:
             self.functions_data[self.func_name][1] += 1
         return self.functions_data[self.func_name][1]
@@ -78,7 +77,6 @@ class CymbolCheckerVisitor (CymbolVisitor):
     # Adds load statement and returns the temp var that contains
     # the value of the given variable
     # NOTE: Returns None if the variable to be loaded is not a pointer
-
     def loadVariable(self, var, var_type):
         current_var = None
         align_val = 1
@@ -226,7 +224,6 @@ class CymbolCheckerVisitor (CymbolVisitor):
             expr_result_value = expr_result
 
         # store the value of the expr result where it should be stored
-        # TODO: Store variable types as pointers too when necessary
         self.program += '\tstore {} {}, {} {}, align 4\n'.format(
             expr_result_type, expr_result_value, var_type, var_id)
 
@@ -234,7 +231,7 @@ class CymbolCheckerVisitor (CymbolVisitor):
 
     # START EXPRESSIONS
     # Note: In case expressions return the last temp variable used
-    # their type MUST be an int!!!
+    # their type MUST be an int.
     def visitIntExpr(self, ctx: CymbolParser.VarIdExprContext):
         return ctx.INT().getText()
 
